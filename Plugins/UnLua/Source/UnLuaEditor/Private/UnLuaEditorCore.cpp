@@ -20,9 +20,12 @@
 #include "GameFramework/Actor.h"
 #include "Interfaces/IPluginManager.h"
 
+void CreateNotiWidget(FString Msg, bool bSucceed);
 // create Lua template file for the selected blueprint
-bool CreateLuaTemplateFile(UBlueprint *Blueprint)
+bool CreateLuaTemplateFile(UBlueprint *Blueprint )
 {
+    bool bSucceed =false;
+	FString OutputString="";
     if (Blueprint)
     {
         UClass *Class = Blueprint->GeneratedClass;
@@ -38,39 +41,67 @@ bool CreateLuaTemplateFile(UBlueprint *Blueprint)
         if (FPaths::FileExists(FileName))
         {
             UE_LOG(LogUnLua, Warning, TEXT("Lua file (%s) is already existed!"), *ClassName);
-            return false;
+            OutputString=TEXT("Lua file")+ ClassName + TEXT("  is already existed!");
+            bSucceed= false;
         }
+		else
+		{
+			static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("UnLua"))->GetContentDir();
 
-        static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("UnLua"))->GetContentDir();
+			FString TemplateName;
+			if (Class->IsChildOf(AActor::StaticClass()))
+			{
+				// default BlueprintEvents for Actor
+				TemplateName = ContentDir + TEXT("/ActorTemplate.lua");
+			}
+			else if (Class->IsChildOf(UUserWidget::StaticClass()))
+			{
+				// default BlueprintEvents for UserWidget (UMG)
+				TemplateName = ContentDir + TEXT("/UserWidgetTemplate.lua");
+			}
+			else if (Class->IsChildOf(UAnimInstance::StaticClass()))
+			{
+				// default BlueprintEvents for AnimInstance (animation blueprint)
+				TemplateName = ContentDir + TEXT("/AnimInstanceTemplate.lua");
+			}
+			else if (Class->IsChildOf(UActorComponent::StaticClass()))
+			{
+				// default BlueprintEvents for ActorComponent
+				TemplateName = ContentDir + TEXT("/ActorComponentTemplate.lua");
+			}
 
-        FString TemplateName;
-        if (Class->IsChildOf(AActor::StaticClass()))
-        {
-            // default BlueprintEvents for Actor
-            TemplateName = ContentDir + TEXT("/ActorTemplate.lua");
+			FString Content;
+			FFileHelper::LoadFileToString(Content, *TemplateName);
+			Content = Content.Replace(TEXT("TemplateName"), *ClassName);
+			bSucceed = FFileHelper::SaveStringToFile(Content, *FileName);
+			if (bSucceed)
+			{
+				OutputString = TEXT("Create Succeed!");
+			}
+			else
+			{
+				OutputString = TEXT("Create fail!");
+			}
         }
-        else if (Class->IsChildOf(UUserWidget::StaticClass()))
-        {
-            // default BlueprintEvents for UserWidget (UMG)
-            TemplateName = ContentDir + TEXT("/UserWidgetTemplate.lua");
-        }
-        else if (Class->IsChildOf(UAnimInstance::StaticClass()))
-        {
-            // default BlueprintEvents for AnimInstance (animation blueprint)
-            TemplateName = ContentDir + TEXT("/AnimInstanceTemplate.lua");
-        }
-        else if (Class->IsChildOf(UActorComponent::StaticClass()))
-        {
-            // default BlueprintEvents for ActorComponent
-            TemplateName = ContentDir + TEXT("/ActorComponentTemplate.lua");
-        }
-
-        FString Content;
-        FFileHelper::LoadFileToString(Content, *TemplateName);
-        Content = Content.Replace(TEXT("TemplateName"), *ClassName);
-
-        return FFileHelper::SaveStringToFile(Content, *FileName);
     }
-    return false;
+	else
+	{
+		OutputString = TEXT("Blueprint not exit!");
+	}
+    CreateNotiWidget(OutputString,  bSucceed);
+    return bSucceed;
 }
 
+ void CreateNotiWidget(FString Msg, bool bSucceed)
+{
+	FNotificationInfo CreateLuaFileNotificationInfo(FText::FromString(Msg));
+	CreateLuaFileNotificationInfo.bUseSuccessFailIcons = bSucceed;
+	CreateLuaFileNotificationInfo.ExpireDuration = 3.0f;
+	CreateLuaFileNotificationInfo.FadeInDuration = 0.5f;
+	CreateLuaFileNotificationInfo.FadeOutDuration = 0.5f;
+	CreateLuaFileNotificationInfo.bUseThrobber = true;
+	CreateLuaFileNotificationInfo.bFireAndForget = true;
+
+	FSlateNotificationManager::Get().AddNotification(CreateLuaFileNotificationInfo);
+
+}
