@@ -19,6 +19,8 @@
 #include "Animation/AnimInstance.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/IPluginManager.h"
+#include <Widgets/Notifications/SNotificationList.h>
+#include <Framework/Notifications/NotificationManager.h>
 
 void CreateNotiWidget(FString Msg, bool bSucceed);
 // create Lua template file for the selected blueprint
